@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no">
+
+    <title>Confirmation</title>
+
+    <!-- styles -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-rc.2/css/materialize.min.css">
+
+    <!-- materialize -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-rc.2/js/materialize.min.js"></script>
+
+    <!--VueJS-->
+    <script src="https://unpkg.com/vue/dist/vue.js"></script>
+    
+    <!-- axios -->
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <style>  
+        html,body{
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            background-color: whitesmoke;
+        }
+    </style>
+
+    
+</head>
+<body>
+    <div id="app">
+        <div class="navbar-fixed">
+            <nav>
+                <div class="nav-wrapper">
+                    <a href="#" class="brand-logo">&nbsp Chief Page</a>                
+                </div>
+            </nav>
+        </div>
+        <div class="row" v-show="message != ''">
+                <div class="col s12">
+                    <div class="card blue-grey darken-1">
+                        <div class="card-content white-text">
+                            <span class="card-title">Message</span>
+                            <p>{{message}}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <div class="row" v-show="errorOccurred == true">
+            <div class="col s12">
+                <div class="card large blue-grey darken-1">
+                    <div class="card-content white-text">
+                        <span class="card-title">Error</span>
+                        <p>{{errorMessage}}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>   
+
+
+    <!--================================================================-->
+    <script>
+        "use strict"
+
+        var app = new Vue({
+            el: "#app",
+            data: {
+                message: "",
+                errorOccurred: false,
+                errorMessage: ""
+            },
+            methods: {
+                init: function(){
+                    var _this = this
+                    _this.getConfirmation()
+                },
+                getConfirmation: function(){
+                    var _this = this
+                    axios.get('https://query.cityoflewisville.com/v2?webservice=AlertPagesHistory_ReceiptConfirmation&guid='+_this.getUrlVars().guid)
+                    .then(function(_results){  
+                        if (typeof _results.data[0][0] != 'undefined'){
+                            _this.message = _results.data[0][0].Message
+                        }else{
+                            _this.message = "Error"
+                            _this.errorOccurred = true
+                            _this.errorMessage = JSON.stringify(_results.data[0][0])
+                        }
+                    })
+                    .catch(function(_error){ 
+                        _this.message = "Error"
+                            _this.errorOccurred = true
+                            _this.errorMessage = JSON.stringify(_error)
+                    })
+                },
+                getUrlVars: function() {
+                    var vars = {};
+                    var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) {
+                        vars[key] = value;
+                    });
+                    return vars;
+                }
+            }
+        })     
+
+        document.addEventListener('DOMContentLoaded', function(){
+            app.init()
+        })
+
+    </script>
+</body>
+</html>

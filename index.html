@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no">
+
+    <title>Chief Page</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="mask-icon" href="safari-pinned-tab.svg" color="#5bbad5">
+    <meta name="msapplication-TileColor" content="#603cba">
+    <meta name="theme-color" content="#ffffff">
+
+    <!-- styles -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-rc.2/css/materialize.min.css">
+
+    <!-- materialize -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-rc.2/js/materialize.min.js"></script>
+
+    <!--VueJS-->
+    <script src="https://unpkg.com/vue/dist/vue.js"></script>
+    
+    <!-- axios -->
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <style>  
+        html,body{
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            background-color: whitesmoke;
+        }           
+        .row .col{
+            padding: 1px !important;
+        } 
+        .collection{
+            background-color: white;
+        }
+        textarea{
+            width: 100%;
+            height: 125px;
+        }
+        .collection-item p{
+            margin-top: 0px !important;
+        }
+        @media only screen and (min-width: 1200px){
+            #mainContainer{
+                margin: 0 auto;
+                max-width: 1200px;
+            }
+        }
+    </style>
+
+    
+</head>
+<body>
+    <div id="app">
+        <div class="navbar-fixed">
+            <nav>
+                <div class="nav-wrapper">
+                    <a href="#" class="brand-logo">&nbsp Chief Page</a>                
+                </div>
+            </nav>
+        </div>
+        <div id="mainContainer">            
+            <div class="row">           
+                <div id="calls" class="col s6">
+                    <h5>Active Calls</h5>
+                    <ul id="callsContainer" class="collection">
+                        <li 
+                          class="collection-item" 
+                          v-for="_call in calls" 
+                          :class="{'green lighten-4': selectedCall.callnumber == _call.callnumber}" 
+                          v-on:click="selectedCall = _call; getConfirmations_Interval(_call.callnumber);">
+                            <span class="title"><b>{{_call.complaint}}</b> </span>
+                            <p>
+                                <span>{{_call.locationaddr}}</span> <small>[{{_call.callnumber}}]</small>                                
+                                <span v-show="_call.alertconfirmationsreceivedcount > 0" class="new badge" data-badge-caption="Conf">{{_call.alertconfirmationsreceivedcount}}</span>
+                                <span v-show="_call.alertconfirmationssentcount > 0" class="new badge blue" data-badge-caption="Sent">{{_call.alertconfirmationssentcount}}</span>
+                                <a href="#messageComposer" class="secondary-content modal-trigger" v-on:click="alertType='swat'">SWAT Page</a>
+                                <a href="#messageComposer" class="secondary-content modal-trigger" v-on:click="alertType='chief'">Chief Page &nbsp |&nbsp </a>
+                            </p>
+                        </li>
+                    </ul>
+                </div>
+
+                <!--Confirmations-->
+                <div class="col s6" v-show="selectedCall.hasOwnProperty('callnumber')">                    
+                    <div class="z-depth-4 white" style="margin:3em 0 3em 3em; padding: 0.5em; border: solid 2px gainsboro;">
+                        <h5>Alerts Sent</h5>
+                        <hr>
+                        <div class="green lighten-4" style="padding:1em 10px;"><b>{{selectedCall.complaint}}</b> &nbsp <small>{{selectedCall.callnumber}}</small></div>
+                        <table v-show="alerts.length > 0" style="margin-bottom:3em;">
+                            <thead>
+                                <tr>
+                                    <th>Recipient</th>
+                                    <th>Sent Time</th>
+                                    <th>Confirmed Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="_alert in alerts" :class="{'grey-text': _alert.receiptconfirmation == null}">
+                                    <td>{{_alert.recipient}}</td>
+                                    <td>{{_alert.senttime}}</td>
+                                    <td>{{_alert.receiptconfirmation}}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div v-show="alerts.length == 0">
+                            <br>
+                                <div class="chip">
+                                No alerts sent
+                                </div>
+                                <br>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>	
+
+        <!-- Modal -->
+        <div id="messageComposer" class="modal">
+            <div class="modal-content" v-bind:class="{'blue lighten-4': alertType == 'swat','red lighten-4': alertType == 'chief'}">
+                <h4>{{alertType.toUpperCase() + " PAGE"}}</h4>
+                <hr>
+                <table>
+                    <tr>
+                        <td>Subject:</td>
+                        <td><input class="white" type="text" v-model="emailSubject"/></td>
+                    </tr>
+                    <tr>
+                        <td>Message:</td>
+                        <td><textarea class="white" v-model="emailBody"></textarea></td>
+                    </tr>
+                </table>    
+            </div>
+            <div class="modal-footer">
+                <a href="#!" class="modal-close waves-effect waves-green btn-flat" v-on:click="sendEmail(selectedCall)">SEND</a>
+            </div>
+        </div>
+    </div>
+
+
+    <!--================================================================-->
+    <script>
+        "use strict"
+
+        var app = new Vue({
+            el: "#app",
+            data: {
+                calls: [],
+                isEmployee: 0,
+                username: '',
+                minCallNumber: 0,
+                maxCallNumber: 0,
+                showClosedCalls: 0,
+                selectedCall: [],
+                alertType: "chief",
+                alerts: [],
+                alertsInterval: []
+            },
+            methods: {
+                init: function(){
+                    var _this = this
+                    _this.setUI()
+
+                    var _setIsEmployee = _this.setIsEmployee()
+
+                    _setIsEmployee.then(function(result){                
+                        if (result == true){
+                            _this.getCalls()
+                            
+                            setInterval(function(){
+                                _this.getCalls()
+                            },5000)
+                        }               
+                    })     
+                },
+                setUI: function(){
+                    var elems = document.querySelectorAll('.modal');
+                    var instances = M.Modal.init(elems);
+                },
+                setIsEmployee: function(){
+                    var _this = this
+                    return new Promise(function(resolve,reject){
+                        if (typeof window.localStorage.colEmail != "undefined"){
+                            _this.isEmployee = true
+                            _this.username = window.localStorage.colEmail
+
+                            var _elems = document.querySelectorAll(".username")
+                            _elems.forEach(function(i){
+                                i.innerHTML = window.localStorage.colEmail
+                            })                
+                        }else{
+                            var _elems = document.querySelectorAll(".username")
+                            _elems.forEach(function(i){
+                                i.text = "Employee Login"
+                                i.style.textDecoration = "underline"
+                                i.href='https://maps.cityoflewisville.com/oauthredirect?originalurl=' + encodeURIComponent(window.location.href)
+                            })
+                        }
+                        resolve(_this.isEmployee)
+                        reject(new Error("error whoops"))
+                    })
+                },
+                getCalls: function(){
+                    var _this = this
+                    axios.post('https://query.cityoflewisville.com/v2', {
+                        webservice: "AlertPagesGetCallsList",
+                        auth_token: localStorage.colAuthToken
+                    })
+                    .then(function(_results){  
+                        if (typeof _results.data[0][0] != 'undefined'){
+                            _this.calls = _results.data[0]
+                        }
+                    })
+                    .catch(function(error){ 
+                        console.error(error)
+                    })
+                }, 
+                getConfirmations: function(_callnumber){
+                    var _this = this                    
+                    axios.post('https://query.cityoflewisville.com/v2', {
+                        webservice: "AlertPagesGetConfirmations",
+                        auth_token: localStorage.colAuthToken,
+                        CallNumber: _callnumber
+                    })
+                    .then(function(_results){  
+                        if (typeof _results.data[0][0] != 'undefined'){
+                            console.log(_results.data[0])
+                            _this.alerts = _results.data[0]
+                        }
+                    })
+                    .catch(function(error){ 
+                        console.error(error)
+                    })
+                },   
+                getConfirmations_Interval: function(_callnumber){
+                    var _this = this
+
+                    clearInterval(_this.alertsInterval)
+                    
+                    _this.alerts = []
+
+                    _this.getConfirmations(_callnumber)
+
+                    _this.alertsInterval = setInterval(function(){
+                        _this.getConfirmations(_callnumber)
+                    },3000)
+                },
+                sendEmail: function(_call){
+                    var _this = this
+                    axios.post('https://query.cityoflewisville.com/v2', {
+                        webservice: "AlertPagesSendEmail",
+                        auth_token: localStorage.colAuthToken,
+                        callnumber: _call.callnumber,
+                        calltitle: _call.complaint,
+                        body: _this.emailBody,
+                        sentby: _this.username
+                    })
+                    .then(function(_results){ 
+                        if (M){
+                            M.toast({html: _results.data[0][0].message})
+                        }else{
+                            alert(_results.data[0][0].message)
+                        }
+                    })
+                    .catch(function(_error){ 
+                        if (M){
+                            M.toast({html: _error})
+                        }else{
+                            alert(_error)
+                        }
+                    })
+                }
+            },
+            computed:{
+                emailSubject: function(){
+                    var _this = this
+                    return "CHIEF PAGE: " + _this.selectedCall.complaint
+                },
+                emailBody: function(){
+                    var _this = this
+                    var _call = _this.selectedCall
+                    var _text = _call.complaint + '\n' + 
+                    'Recvd: ' +  _call.time + '\n' + 
+                    _call.locationaddr + ',' + _call.locationcity + '\n' + 
+                    'AVL: http://avl.cityoflewisville.com/#callnumber=' + _call.callnumber + '\n' + 
+                    'Units Assigned: ' + _call.units + '\n' +
+                    'Grid:'
+                    
+                    return _text
+                }
+            }
+        })     
+
+        document.addEventListener('DOMContentLoaded', function(){
+            app.init()
+        })
+
+    </script>
+</body>
+</html>
