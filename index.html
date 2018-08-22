@@ -32,6 +32,7 @@
             height: 100%;
             width: 100%;
             background-color: whitesmoke;
+            overflow:hidden;
         }           
         .row .col{
             padding: 1px !important;
@@ -48,9 +49,12 @@
         }
         @media only screen and (min-width: 1200px){
             #mainContainer{
-                margin: 0 auto;
-                max-width: 1200px;
+                margin: 1em 3em;               
             }
+        }
+        .s6{
+            height: calc(100vh - 75px) !important;
+            overflow-y: scroll;
         }
     </style>
 
@@ -58,16 +62,26 @@
 </head>
 <body>
     <div id="app">
-        <div class="navbar-fixed">
+        <div class="navbar">
             <nav>
                 <div class="nav-wrapper">
                     <a href="#" class="brand-logo">&nbsp Chief Page</a>                
                 </div>
             </nav>
         </div>
-        <div id="mainContainer">            
+
+        <!--Employee Login-->
+        <div class="row"style="height:calc(100vh  - 70px);" v-show="isEmployee ==  false">
+            <div class="col s12">
+                <div class="valign-wrapper">
+                    <a class="btn employee-login">Employee Login</a>
+                </div>
+            </div>
+        </div>
+
+        <div id="mainContainer" v-show="isEmployee == true">            
             <div class="row">           
-                <div id="calls" class="col s6">
+                <div class="col s6">
                     <h5>Active Calls</h5>
                     <ul id="callsContainer" class="collection">
                         <li 
@@ -87,23 +101,26 @@
                     </ul>
                 </div>
 
-                <!--Confirmations123-->
-                <div class="col s6" v-show="selectedCall.hasOwnProperty('callnumber')">                    
-                    <div class="z-depth-4 white" style="margin:3em 0 3em 3em; padding: 0.5em; border: solid 2px gainsboro;">
-                        <h5>Alerts Sent</h5>
-                        <hr>
-                        <div class="green lighten-4" style="padding:1em 10px;"><b>{{selectedCall.complaint}}</b> &nbsp <small>{{selectedCall.callnumber}}</small></div>
-                        <table v-show="alerts.length > 0" style="margin-bottom:3em;">
+                <!--Pages Sent-->
+                <div class="col s6">        
+                    <h5 style="margin-left:2em; padding-left:0; width:100%;">Pages Sent <a class="btn" v-on:click="getConfirmations_Interval('-1')">Past 100 Pages</a></h5>            
+                    <div class="z-depth-4 white" style="margin-left:3em; padding: 0.5em; border: solid 2px gainsboro;" v-for="_callnumber in alertsCallNumbers">
+                        <div class="green lighten-4" style="padding:1em 10px;"><b>{{callsFiltered(_callnumber).complaint}}</b> &nbsp <small>{{_callnumber}}</small></div>
+                        <table v-show="alerts.length > 0" style="margin-bottom:3em; font-size: 0.9em;">
                             <thead>
                                 <tr>
-                                    <th>Recipient</th>
+                                    <th>Call#</th>
+                                    <th>Address</th>
+                                    <th>Name</th>
                                     <th>Sent Time</th>
                                     <th>Confirmed Time</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="_alert in alerts" :class="{'grey-text': _alert.receiptconfirmation == null}">
+                                <tr v-for="_alert in alertsFiltered(_callnumber)" :class="{'grey-text': _alert.receiptconfirmation == null}">
+                                    <td>{{_alert.callnumber}}</td>
                                     <td>{{_alert.recipient}}</td>
+                                    <td>{{_alert.employee}}</td>
                                     <td>{{_alert.senttime}}</td>
                                     <td>{{_alert.receiptconfirmation}}</td>
                                 </tr>
@@ -112,7 +129,7 @@
                         <div v-show="alerts.length == 0">
                             <br>
                                 <div class="chip">
-                                No alerts sent
+                                No pages sent
                                 </div>
                                 <br>
                         </div>
@@ -161,6 +178,7 @@
                 selectedCall: [],
                 alertType: "chief",
                 alerts: [],
+                alertsCallNumbers: [],
                 alertsInterval: []
             },
             methods: {
@@ -168,17 +186,15 @@
                     var _this = this
                     _this.setUI()
 
-                    var _setIsEmployee = _this.setIsEmployee()
-
-                    _setIsEmployee.then(function(result){                
-                        if (result == true){
+                    var _isEmployee = _this.setIsEmployee()
+                    
+                    if (_isEmployee == true){
+                        _this.getCalls()
+                        
+                        setInterval(function(){
                             _this.getCalls()
-                            
-                            setInterval(function(){
-                                _this.getCalls()
-                            },5000)
-                        }               
-                    })     
+                        },5000)
+                    }   
                 },
                 setUI: function(){
                     var elems = document.querySelectorAll('.modal');
@@ -186,26 +202,19 @@
                 },
                 setIsEmployee: function(){
                     var _this = this
-                    return new Promise(function(resolve,reject){
-                        if (typeof window.localStorage.colEmail != "undefined"){
-                            _this.isEmployee = true
-                            _this.username = window.localStorage.colEmail
-
-                            var _elems = document.querySelectorAll(".username")
-                            _elems.forEach(function(i){
-                                i.innerHTML = window.localStorage.colEmail
-                            })                
-                        }else{
-                            var _elems = document.querySelectorAll(".username")
-                            _elems.forEach(function(i){
-                                i.text = "Employee Login"
-                                i.style.textDecoration = "underline"
-                                i.href='https://maps.cityoflewisville.com/oauthredirect?originalurl=' + encodeURIComponent(window.location.href)
-                            })
-                        }
-                        resolve(_this.isEmployee)
-                        reject(new Error("error whoops"))
-                    })
+                    if (typeof window.localStorage.colEmail != "undefined"){
+                        _this.isEmployee = true
+                        _this.username = window.localStorage.colEmail
+        
+                    }else{
+                        var _elems = document.querySelectorAll(".employee-login")
+                        _elems.forEach(function(i){
+                            i.text = "Employee Login"
+                            i.style.textDecoration = "underline"
+                            i.href='https://maps.cityoflewisville.com/oauthredirect?originalurl=' + encodeURIComponent(window.location.href)
+                        })
+                    }
+                    return _this.isEmployee
                 },
                 getCalls: function(){
                     var _this = this
@@ -231,7 +240,7 @@
                     })
                     .then(function(_results){  
                         if (typeof _results.data[0][0] != 'undefined'){
-                            console.log(_results.data[0])
+                            _this.alertsCallNumbers = _this.uniqueCalls(_results.data[0])
                             _this.alerts = _results.data[0]
                         }
                     })
@@ -275,6 +284,22 @@
                         }else{
                             alert(_error)
                         }
+                    })
+                },
+                uniqueCalls: function(_calls){
+                    return _calls.map(function(item){return item.callnumber})
+                    .filter(function(value, index, self){return self.indexOf(value) === index})
+                },
+                callsFiltered: function(_callnumber){
+                    var _this = this
+                    return _this.calls.filter(function(_call){
+                        return _call.callnumber == _callnumber
+                    })[0]
+                },
+                alertsFiltered: function(_callnumber){
+                    var _this = this
+                    return _this.alerts.filter(function(_alert){
+                        return _alert.callnumber == _callnumber
                     })
                 }
             },
