@@ -15,6 +15,7 @@
 
     <!-- styles -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-rc.2/css/materialize.min.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
     <!-- materialize -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-rc.2/js/materialize.min.js"></script>
@@ -55,27 +56,36 @@
         .s6{
             height: calc(100vh - 75px) !important;
             overflow-y: scroll;
-        }
+        } 
+        [v-cloak] { display: none; }       
     </style>
 
     
 </head>
 <body>
-    <div id="app">
+    <div id="app" v-cloak>
         <div class="navbar">
+            <!-- Dropdown Structure -->
+            <ul id="dropdown_OldGroupEmails" class="dropdown-content">
+                <li><a href="https://mail.google.com/mail/?view=cm&fs=1&tf=1&source=mailto&to=chiefpage@cityoflewisville.com&su=CHIEF%20PAGE:&shva=1">Chief Page via Gmail Group <br><small>(AT&T SMS issues sometimes)</small></a></li>
+                <li><a href="https://mail.google.com/mail/?view=cm&fs=1&tf=1&source=mailto&to=LPDSWAT@cityoflewisville.com&su=SWAT%20PAGE:&shva=1">SWAT Page via Gmail Group <br><small>(AT&T SMS issues sometimes)</small></a></li>                
+            </ul>
             <nav>
                 <div class="nav-wrapper">
-                    <a href="#" class="brand-logo">&nbsp Chief Page</a>                
+                    <a href="" class="brand-logo">&nbsp Chief Page</a>           
+                    <ul id="nav-mobile" class="right hide-on-med-and-down">
+                        <!-- Dropdown Trigger -->
+                        <li><a class="dropdown-trigger" href="#!" data-target="dropdown_OldGroupEmails">Legacy Method<i class="material-icons right">arrow_drop_down</i></a></li>
+                        <li><a>{{username || ''}}</a></li>
+                    </ul>     
                 </div>
             </nav>
         </div>
 
         <!--Employee Login-->
-        <div class="row"style="height:calc(100vh  - 70px);" v-show="isEmployee ==  false">
-            <div class="col s12">
-                <div class="valign-wrapper">
-                    <a class="btn employee-login">Employee Login</a>
-                </div>
+        <div class="row valign-wrapper" style="height:200px; width:100%;" v-show="isEmployee ==  false">
+            <div class="col s12 center-align">
+                <a class="btn-large employee-login">Employee Login</a>
             </div>
         </div>
 
@@ -83,13 +93,14 @@
             <div class="row">           
                 <div class="col s6">
                     <h5>Active Calls</h5>
+                    <hr>
                     <ul id="callsContainer" class="collection">
                         <li 
                           class="collection-item" 
                           v-for="_call in calls" 
                           :class="{'green lighten-4': selectedCall.callnumber == _call.callnumber}" 
                           v-on:click="selectedCall = _call; getConfirmations_Interval(_call.callnumber);">
-                            <span class="title"><b>{{_call.complaint}}</b> </span>
+                            <span class="title"><b>{{_call.complaint}}</b> &nbsp <small>{{_call.time}}</small></span>
                             <p>
                                 <span>{{_call.locationaddr}}</span> <small>[{{_call.callnumber}}]</small>                                
                                 <span v-show="_call.alertconfirmationsreceivedcount > 0" class="new badge" data-badge-caption="Conf">{{_call.alertconfirmationsreceivedcount}}</span>
@@ -103,9 +114,25 @@
 
                 <!--Pages Sent-->
                 <div class="col s6">        
-                    <h5 style="margin-left:2em; padding-left:0; width:100%;">Pages Sent <a class="btn" v-on:click="getConfirmations_Interval('-1')">Past 100 Pages</a></h5>            
-                    <div class="z-depth-4 white" style="margin-left:3em; padding: 0.5em; border: solid 2px gainsboro;" v-for="_callnumber in alertsCallNumbers">
-                        <div class="green lighten-4" style="padding:1em 10px;"><b>{{callsFiltered(_callnumber).complaint}}</b> &nbsp <small>{{_callnumber}}</small></div>
+                    <h5 style="margin-left:2em; padding-left:0; width:100%;">Pages Sent 
+                        <a class="btn" style="float:right; margin-right:4em;" v-on:click="getConfirmations_Interval('-1')">Past 100 Pages</a>
+                    </h5>  
+                    <hr>   
+
+                    <div v-show="alerts.length == 0" class="center-align" style="padding:6em">
+                        Paging Results <br> <i>Click a paged-call to see pages sent</i> 
+                    </div>  
+
+                    <!--Card-->
+                    <div 
+                      class="z-depth-4 white" 
+                      style="margin-left:3em; padding: 0.5em; border: solid 2px gainsboro; margin-bottom: 1em;" 
+                      v-for="_callnumber in alertsCallNumbers">
+
+                        <div class="green lighten-4" style="padding:1em 10px;">
+                            <b>{{alertsFiltered(_callnumber)[0].complaint}}</b> &nbsp <small>{{_callnumber}}</small> &nbsp <small>{{alertsFiltered(_callnumber)[0].time}}</small>
+                        </div>
+
                         <table v-show="alerts.length > 0" style="margin-bottom:3em; font-size: 0.9em;">
                             <thead>
                                 <tr>
@@ -141,7 +168,7 @@
 
         <!-- Modal -->
         <div id="messageComposer" class="modal">
-            <div class="modal-content" v-bind:class="{'blue lighten-4': alertType == 'swat','red lighten-4': alertType == 'chief'}">
+            <div class="modal-content" v-bind:class="{'blue lighten-3': alertType == 'swat','red lighten-3': alertType == 'chief'}">
                 <h4>{{alertType.toUpperCase() + " PAGE"}}</h4>
                 <hr>
                 <table>
@@ -156,7 +183,7 @@
                 </table>    
             </div>
             <div class="modal-footer">
-                <a href="#!" class="modal-close waves-effect waves-green btn-flat" v-on:click="sendEmail(selectedCall)">SEND</a>
+                <a href="" class="modal-close waves-effect waves-green btn-flat" v-on:click="sendEmail(selectedCall)">SEND</a>
             </div>
         </div>
     </div>
@@ -199,6 +226,9 @@
                 setUI: function(){
                     var elems = document.querySelectorAll('.modal');
                     var instances = M.Modal.init(elems);
+
+                    var elems2 = document.querySelectorAll('.dropdown-trigger');
+                    var instances2 = M.Dropdown.init(elems2);
                 },
                 setIsEmployee: function(){
                     var _this = this
@@ -210,8 +240,7 @@
                         var _elems = document.querySelectorAll(".employee-login")
                         _elems.forEach(function(i){
                             i.text = "Employee Login"
-                            i.style.textDecoration = "underline"
-                            i.href='https://maps.cityoflewisville.com/oauthredirect?originalurl=' + encodeURIComponent(window.location.href)
+                            i.href= window.location.href + '/oauthredirect' //?originalurl=' + encodeURIComponent(window.location.href)
                         })
                     }
                     return _this.isEmployee
@@ -269,7 +298,8 @@
                         callnumber: _call.callnumber,
                         calltitle: _call.complaint,
                         body: _this.emailBody,
-                        sentby: _this.username
+                        sentby: _this.username,
+                        pagegroup: _this.alertType
                     })
                     .then(function(_results){ 
                         if (M){
@@ -289,13 +319,7 @@
                 uniqueCalls: function(_calls){
                     return _calls.map(function(item){return item.callnumber})
                     .filter(function(value, index, self){return self.indexOf(value) === index})
-                },
-                callsFiltered: function(_callnumber){
-                    var _this = this
-                    return _this.calls.filter(function(_call){
-                        return _call.callnumber == _callnumber
-                    })[0]
-                },
+                },                
                 alertsFiltered: function(_callnumber){
                     var _this = this
                     return _this.alerts.filter(function(_alert){

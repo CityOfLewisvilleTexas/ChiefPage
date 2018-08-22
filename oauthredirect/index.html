@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<head>
+	<title>Redirecting...</title>
+	<script src="https://code.jquery.com/jquery-1.11.2.min.js"></script>	
+</head>
+<body>
+	<script>
+		var app = (function(){
+			return {
+				settings: {
+					apiAppUrl: "https://query.cityoflewisville.com/",
+					mainAppUrl: "http://apps.cityoflewisville.com/GitLocal/Jason/ChiefPage",
+					thisAppUrl: "http://apps.cityoflewisville.com/GitLocal/Jason/ChiefPage/oauthredirect/index.html"
+				},
+				init: function(){
+					console.log("init()")
+					var _this = this;
+					var _googleCode = _this.getParameterByName('code');
+
+					if (_googleCode){
+						_this.getNewColAuthToken(_googleCode);
+					}else{
+						_this.goToGoogleLoginScreen();
+					}
+				},				
+				getNewColAuthToken: function(_googleCode){
+					var _this = this;
+					$.post(_this.settings.apiAppUrl + "authenticate", {
+						code : _googleCode,
+						redirectUrl : _this.settings.thisAppUrl
+					}, function(data){
+						var _authToken = data[0][0]['AUTH_TOKEN']
+
+						if ( _authToken ){	
+							localStorage.colAuthToken = _authToken;
+							_this.verifyColAuthToken(_authToken,function(){
+								window.location = _this.settings.mainAppUrl
+							})							
+						}else{	
+							localStorage.removeItem('colAuthToken');
+							alert('access denied');
+						}
+					})
+				},
+				goToGoogleLoginScreen: function(){
+					var _this = this;					
+					var _prompt = 'prompt=select_account'
+					var _access = '&access_type=offline'
+					var _resptype = '&response_type=code'
+					var _redirect = '&redirect_uri=' + _this.settings.thisAppUrl
+					var _scopes = '&scope=https://www.googleapis.com/auth/userinfo.email+https://www.googleapis.com/auth/userinfo.profile'
+					var _clientid = '&client_id=819027772449-2us5mt2tu1ec84nve9353qka8i6mfj68.apps.googleusercontent.com'
+
+					window.location = 'https://accounts.google.com/o/oauth2/v2/auth?' + _prompt + _access + _resptype + _redirect + _scopes + _clientid
+				},
+				verifyColAuthToken(_authToken,_callback){
+					var _this = this;
+					$.post(_this.settings.apiAppUrl + 'v2', {
+						webservice : 'ITS/Verify Auth Token',
+						auth_token : _authToken
+					}, function(data){
+						if (data['Verification'][0]['VERIFIED'] == 0){
+							getNewCode();
+						}else{
+							localStorage.colEmail = data['Verification'][0]['EMAIL'];
+							if (_callback){
+								_callback()
+							}
+						}
+					})
+				},
+				getParameterByName: function(name, url) {
+					if (!url) url = window.location.href;
+					name = name.replace(/[\[\]]/g, '\\$&');
+					var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'), results = regex.exec(url);
+					if (!results) return null;
+					if (!results[2]) return '';
+					return decodeURIComponent(results[2].replace(/\+/g, ''));
+				}
+			}
+		})();
+
+		document.addEventListener('DOMContentLoaded', function(){
+            app.init()
+        })
+	</script>
+</body>

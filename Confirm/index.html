@@ -81,7 +81,7 @@
                 },
                 getConfirmation: function(){
                     var _this = this
-                    axios.get('https://query.cityoflewisville.com/v2?webservice=AlertPagesHistory_ReceiptConfirmation&guid='+_this.getUrlVars().guid)
+                    axios.get('https://query.cityoflewisville.com/v2?webservice=AlertPagesHistory_ReceiptConfirmation&id='+_this.getUrlVars().id)
                     .then(function(_results){  
                         if (typeof _results.data[0][0] != 'undefined'){
                             _this.message = _results.data[0][0].Message
