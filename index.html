@@ -15,7 +15,10 @@
 
     <!-- styles -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-rc.2/css/materialize.min.css">
+    <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Product+Sans:400,400i,700,700i" rel="stylesheet" type="text/css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Product+Sans:400,400i,700,700i" rel="stylesheet" type="text/css">
 
     <!-- materialize -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-rc.2/js/materialize.min.js"></script>
@@ -67,15 +70,16 @@
         <div class="navbar">
             <!-- Dropdown Structure -->
             <ul id="dropdown_OldGroupEmails" class="dropdown-content">
-                <li><a href="https://mail.google.com/mail/?view=cm&fs=1&tf=1&source=mailto&to=chiefpage@cityoflewisville.com&su=CHIEF%20PAGE:&shva=1">Chief Page via Gmail Group <br><small>(AT&T SMS issues sometimes)</small></a></li>
+                <li><a href="https://mail.google.com/mail/?view=cm&fs=1&tf=1&source=mailto&to=chiefpage@cityoflewisville.com&su=CHIEF%20PAGE:&shva=1">Fire Chief Page via Gmail Group <br><small>(AT&T SMS issues sometimes)</small></a></li>
+                <li><a href="https://mail.google.com/mail/?view=cm&fs=1&tf=1&source=mailto&to=LPDchiefpage@cityoflewisville.com&su=CHIEF%20PAGE:&shva=1">Police Chief Page via Gmail Group <br><small>(AT&T SMS issues sometimes)</small></a></li>
                 <li><a href="https://mail.google.com/mail/?view=cm&fs=1&tf=1&source=mailto&to=LPDSWAT@cityoflewisville.com&su=SWAT%20PAGE:&shva=1">SWAT Page via Gmail Group <br><small>(AT&T SMS issues sometimes)</small></a></li>                
             </ul>
             <nav>
-                <div class="nav-wrapper">
-                    <a href="" class="brand-logo">&nbsp Chief Page</a>           
+                <div class="nav-wrapper deep-purple white-text">
+                    <a class="brand-logo">&nbsp Chief Page</a>           
                     <ul id="nav-mobile" class="right hide-on-med-and-down">
                         <!-- Dropdown Trigger -->
-                        <li><a class="dropdown-trigger" href="#!" data-target="dropdown_OldGroupEmails">Legacy Method<i class="material-icons right">arrow_drop_down</i></a></li>
+                        <li><a class="dropdown-trigger" data-target="dropdown_OldGroupEmails">Legacy Method<i class="material-icons right">arrow_drop_down</i></a></li>
                         <li><a>{{username || ''}}</a></li>
                     </ul>     
                 </div>
@@ -105,8 +109,9 @@
                                 <span>{{_call.locationaddr}}</span> <small>[{{_call.callnumber}}]</small>                                
                                 <span v-show="_call.alertconfirmationsreceivedcount > 0" class="new badge" data-badge-caption="Conf">{{_call.alertconfirmationsreceivedcount}}</span>
                                 <span v-show="_call.alertconfirmationssentcount > 0" class="new badge blue" data-badge-caption="Sent">{{_call.alertconfirmationssentcount}}</span>
-                                <a href="#messageComposer" class="secondary-content modal-trigger" v-on:click="alertType='swat'">SWAT Page</a>
-                                <a href="#messageComposer" class="secondary-content modal-trigger" v-on:click="alertType='chief'">Chief Page &nbsp |&nbsp </a>
+                                <a href="#messageComposer" class="secondary-content modal-trigger" v-on:click="openEmailComposer(_call,'swat')">SWAT</a>
+                                <a href="#messageComposer" class="secondary-content modal-trigger" v-on:click="openEmailComposer(_call,'police')">Police Chiefs &nbsp | &nbsp </a>
+                                <a href="#messageComposer" class="secondary-content modal-trigger" v-on:click="openEmailComposer(_call,'fire')">Fire Chiefs &nbsp | &nbsp </a>
                             </p>
                         </li>
                     </ul>
@@ -137,6 +142,7 @@
                             <thead>
                                 <tr>
                                     <th>Call#</th>
+                                    <th>Page Type</th>
                                     <th>Address</th>
                                     <th>Name</th>
                                     <th>Sent Time</th>
@@ -146,6 +152,7 @@
                             <tbody>
                                 <tr v-for="_alert in alertsFiltered(_callnumber)" :class="{'grey-text': _alert.receiptconfirmation == null}">
                                     <td>{{_alert.callnumber}}</td>
+                                    <td :class="pageGroupFiltered('googleGroup',_alert.pagegroup).textcolor + '-text'">{{pageGroupName(_alert.pagegroup)}}</td>
                                     <td>{{_alert.recipient}}</td>
                                     <td>{{_alert.employee}}</td>
                                     <td>{{_alert.senttime}}</td>
@@ -162,14 +169,13 @@
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>	
 
         <!-- Modal -->
         <div id="messageComposer" class="modal">
-            <div class="modal-content" v-bind:class="{'blue lighten-3': alertType == 'swat','red lighten-3': alertType == 'chief'}">
-                <h4>{{alertType.toUpperCase() + " PAGE"}}</h4>
+            <div class="modal-content" v-bind:class="selectedPageGroup.backgroundcolor + ' lighten-3'">
+                <h4>{{selectedPageGroup.name.toUpperCase() + " PAGE"}}</h4>
                 <hr>
                 <table>
                     <tr>
@@ -183,7 +189,7 @@
                 </table>    
             </div>
             <div class="modal-footer">
-                <a href="" class="modal-close waves-effect waves-green btn-flat" v-on:click="sendEmail(selectedCall)">SEND</a>
+                <a class="modal-close waves-effect waves-green btn-flat" v-on:click="sendEmail(selectedCall);getConfirmations_Interval(selectedCall.callnumber)">SEND</a>
             </div>
         </div>
     </div>
@@ -196,6 +202,32 @@
         var app = new Vue({
             el: "#app",
             data: {
+                pageGroups: [
+                    {
+                        googleGroup: 'chiefpage', 
+                        name: 'Fire', 
+                        emailSubjectTemplate: 'CHIEF PAGE: [[complaint]] [[callnumber]]',
+                        smsSubjectTemplate:"CHIEF PAGE",
+                        backgroundcolor: "red",
+                        textcolor: "red"
+                    },
+                    {
+                        googleGroup: 'lpdchiefpage', 
+                        name: 'Police',
+                        emailSubjectTemplate: 'CHIEF PAGE: [[complaint]] [[callnumber]]',
+                        smsSubjectTemplate:"CHIEF PAGE",
+                        backgroundcolor: "blue",
+                        textcolor: "blue"
+                    },
+                    {
+                        googleGroup: 'lpdswat', 
+                        name: 'SWAT',
+                        emailSubjectTemplate: 'SWAT PAGE: [[complaint]] [[callnumber]]',
+                        smsSubjectTemplate:"SWAT PAGE:",
+                        backgroundcolor: "yellow",
+                        textcolor: "amber"
+                    }
+                ],
                 calls: [],
                 isEmployee: 0,
                 username: '',
@@ -203,10 +235,12 @@
                 maxCallNumber: 0,
                 showClosedCalls: 0,
                 selectedCall: [],
-                alertType: "chief",
+                selectedPageGroup: {name:''},
                 alerts: [],
                 alertsCallNumbers: [],
-                alertsInterval: []
+                alertsInterval: [],
+                emailSubject: '',
+                emailBody: ''
             },
             methods: {
                 init: function(){
@@ -223,12 +257,17 @@
                         },5000)
                     }   
                 },
-                setUI: function(){
+                setUI: function(){   
+                    //Redirect from apps/ to apps.cityoflewisville.com 
+                    if (window.location.href.toLowerCase() == "http://apps/chiefpagev2/"){
+                        window.location = "http://apps.cityoflewisville.com/chiefpagev2"
+                    }        
+
                     var elems = document.querySelectorAll('.modal');
                     var instances = M.Modal.init(elems);
 
                     var elems2 = document.querySelectorAll('.dropdown-trigger');
-                    var instances2 = M.Dropdown.init(elems2);
+                    var instances2 = M.Dropdown.init(elems2);                    
                 },
                 setIsEmployee: function(){
                     var _this = this
@@ -240,7 +279,7 @@
                         var _elems = document.querySelectorAll(".employee-login")
                         _elems.forEach(function(i){
                             i.text = "Employee Login"
-                            i.href= window.location.href + '/oauthredirect' //?originalurl=' + encodeURIComponent(window.location.href)
+                            i.href= window.location.href + '/oauthredirect'
                         })
                     }
                     return _this.isEmployee
@@ -267,11 +306,9 @@
                         auth_token: localStorage.colAuthToken,
                         CallNumber: _callnumber
                     })
-                    .then(function(_results){  
-                        if (typeof _results.data[0][0] != 'undefined'){
-                            _this.alertsCallNumbers = _this.uniqueCalls(_results.data[0])
-                            _this.alerts = _results.data[0]
-                        }
+                    .then(function(_results){                                         
+                        _this.alertsCallNumbers = _this.uniqueCalls(_results.data[0])
+                        _this.alerts = _results.data[0]
                     })
                     .catch(function(error){ 
                         console.error(error)
@@ -297,9 +334,10 @@
                         auth_token: localStorage.colAuthToken,
                         callnumber: _call.callnumber,
                         calltitle: _call.complaint,
+                        subject: _this.emailSubject,
                         body: _this.emailBody,
                         sentby: _this.username,
-                        pagegroup: _this.alertType
+                        pagegroup: _this.selectedPageGroup.googleGroup
                     })
                     .then(function(_results){ 
                         if (M){
@@ -322,29 +360,49 @@
                 },                
                 alertsFiltered: function(_callnumber){
                     var _this = this
-                    return _this.alerts.filter(function(_alert){
+                    var _alert = _this.alerts.filter(function(_alert){
                         return _alert.callnumber == _callnumber
                     })
-                }
-            },
-            computed:{
-                emailSubject: function(){
-                    var _this = this
-                    return "CHIEF PAGE: " + _this.selectedCall.complaint
+                    if (typeof _alert[0] == 'undefined'){
+                        return [{complaint:""}]
+                    }else{
+                        return _alert
+                    }
                 },
-                emailBody: function(){
+                pageGroupFiltered: function(_field,_value){
                     var _this = this
-                    var _call = _this.selectedCall
+                    var _pageGroup = _this.pageGroups.filter(function(_group){
+                        return _group[_field].toLowerCase() == _value.toLowerCase()
+                    })[0]
+                    return _pageGroup
+                },
+                pageGroupName: function(_googleGroup){
+                    var _this = this                    
+                    var _group =_this.pageGroups.filter(function(_group){
+                        return _group.googleGroup.toUpperCase() == _googleGroup.toUpperCase()
+                    })
+                    if ( _group[0] ){
+                        return _group[0].name
+                    }else{
+                        return 'N/A'
+                    }              
+                },
+                openEmailComposer: function(_call,_pageGroupName){                               
+                    var _this = this
+                    var _pageGroup = _this.pageGroupFiltered('name',_pageGroupName)
                     var _text = _call.complaint + '\n' + 
-                    'Recvd: ' +  _call.time + '\n' + 
-                    _call.locationaddr + ',' + _call.locationcity + '\n' + 
-                    'AVL: http://avl.cityoflewisville.com/#callnumber=' + _call.callnumber + '\n' + 
-                    'Units Assigned: ' + _call.units + '\n' +
-                    'Grid:'
-                    
-                    return _text
+                        'Recvd: ' +  _call.time + '\n' + 
+                        _call.locationaddr + ',' + _call.locationcity + '\n' + 
+                        'AVL: http://avl.cityoflewisville.com/#callnumber=' + _call.callnumber + '\n' + 
+                        'Units Assigned: ' + _call.units + '\n' +
+                        'Grid:'
+
+                    //Set variables  
+                    _this.emailSubject = _pageGroup.emailSubjectTemplate.replace('[[callnumber]]',_call.callnumber).replace('[[complaint]]',_call.complaint)
+                    _this.selectedPageGroup = _pageGroup
+                    _this.emailBody = _text
                 }
-            }
+            }            
         })     
 
         document.addEventListener('DOMContentLoaded', function(){
