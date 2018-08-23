@@ -27,12 +27,15 @@
             width: 100%;
             background-color: whitesmoke;
         }
+        [v-cloak] { 
+            display: none; 
+        } 
     </style>
 
     
 </head>
 <body>
-    <div id="app">
+    <div id="app" v-cloak>
         <div class="navbar-fixed">
             <nav>
                 <div class="nav-wrapper">
@@ -40,17 +43,25 @@
                 </div>
             </nav>
         </div>
-        <div class="row" v-show="message != ''">
-                <div class="col s12">
-                    <div class="card blue-grey darken-1">
-                        <div class="card-content white-text">
-                            <span class="card-title">Message</span>
-                            <p>{{message}}</p>
-                        </div>
+        <div class="row container" v-show="message != ''">
+            <div class="col s12">
+                <div class="card blue-grey darken-1">
+                    <div class="card-content white-text">
+                        <span class="card-title">Message</span>
+                        <p>{{message}}</p>
+                        <p>{{(callstatus.toUpperCase() == 'A' ? '' : 'CALL IS NOW CLOSED')}}</p>
+                        <br>
+                        <hr style="border-color: #607d8b;">
+                        <br>
+                        <small>
+                            <p>Paging Stats for this Call:</p>
+                            <p>Sent: {{sent}}  Confirmed: {{confirmed}}</p>
+                        </small>
                     </div>
                 </div>
             </div>
-        <div class="row" v-show="errorOccurred == true">
+        </div>
+        <div class="row container" v-show="errorOccurred == true">
             <div class="col s12">
                 <div class="card large blue-grey darken-1">
                     <div class="card-content white-text">
@@ -71,20 +82,59 @@
             el: "#app",
             data: {
                 message: "",
+                callnumber: "",
+                pagegroup: "",
+                callstatus: "",
+                sent: 0,
+                confirmed: 0,
                 errorOccurred: false,
-                errorMessage: ""
+                errorMessage: "",
+                interval: []
             },
             methods: {
                 init: function(){
                     var _this = this
-                    _this.getConfirmation()
+                    _this.getConfirmation(function(){
+                        _this.getPagingStats()
+                        _this.interval = setInterval(function(){
+                            if (_this.callstatus.toUpperCase() == 'A'){
+                                _this.getPagingStats()
+                            }else{
+                                clearInterval(_this.interval)
+                            }
+                        },3000)
+                    })
                 },
-                getConfirmation: function(){
+                getConfirmation: function(_callback){
                     var _this = this
                     axios.get('https://query.cityoflewisville.com/v2?webservice=AlertPagesHistory_ReceiptConfirmation&id='+_this.getUrlVars().id)
                     .then(function(_results){  
                         if (typeof _results.data[0][0] != 'undefined'){
                             _this.message = _results.data[0][0].Message
+                            _this.callnumber = _results.data[0][0].callnumber
+                            _this.pagegroup = _results.data[0][0].pagegroup
+
+                            _callback()
+                        }else{
+                            _this.message = "Error"
+                            _this.errorOccurred = true
+                            _this.errorMessage = JSON.stringify(_results.data[0][0])
+                        }
+                    })
+                    .catch(function(_error){ 
+                        _this.message = "Error"
+                            _this.errorOccurred = true
+                            _this.errorMessage = JSON.stringify(_error)
+                    })
+                },
+                getPagingStats: function(){
+                    var _this = this
+                    axios.get('https://query.cityoflewisville.com/v2?webservice=AlertPagesCounts&callnumber='+_this.callnumber + '&pagegroup='+_this.pagegroup)
+                    .then(function(_results){  
+                        if (typeof _results.data[0][0] != 'undefined'){
+                            _this.sent = _results.data[0][0].sent
+                            _this.confirmed = _results.data[0][0].confirmed
+                            _this.callstatus = _results.data[0][0].callstatus
                         }else{
                             _this.message = "Error"
                             _this.errorOccurred = true

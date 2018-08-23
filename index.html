@@ -60,7 +60,15 @@
             height: calc(100vh - 75px) !important;
             overflow-y: scroll;
         } 
-        [v-cloak] { display: none; }       
+        [v-cloak] { 
+            display: none; 
+        }     
+        .pages-sent-table td{
+            padding: 5px;
+        }
+        .bold{
+            font-weight: bold;
+        }
     </style>
 
     
@@ -119,11 +127,12 @@
 
                 <!--Pages Sent-->
                 <div class="col s6">        
-                    <h5 style="margin-left:2em; padding-left:0; width:100%;">Pages Sent 
+                    <h5 style="margin-left:2em; padding-left:0; width:100%;">Pages Sent                         
                         <a class="btn" style="float:right; margin-right:4em;" v-on:click="getConfirmations_Interval('-1')">Past 100 Pages</a>
                     </h5>  
                     <hr>   
-
+                    
+                    <!--No results-->
                     <div v-show="alerts.length == 0" class="center-align" style="padding:6em">
                         Paging Results <br> <i>Click a paged-call to see pages sent</i> 
                     </div>  
@@ -136,27 +145,33 @@
 
                         <div class="green lighten-4" style="padding:1em 10px;">
                             <b>{{alertsFiltered(_callnumber)[0].complaint}}</b> &nbsp <small>{{_callnumber}}</small> &nbsp <small>{{alertsFiltered(_callnumber)[0].time}}</small>
+                            <span v-show="alertsFiltered(_callnumber)[0].alertconfirmationsreceivedcount > 0" class="new badge" data-badge-caption="Conf">{{alertsFiltered(_callnumber)[0].alertconfirmationsreceivedcount}}</span>
+                            <span v-show="alertsFiltered(_callnumber)[0].alertconfirmationssentcount > 0" class="new badge blue" data-badge-caption="Sent">{{alertsFiltered(_callnumber)[0].alertconfirmationssentcount}}</span>
                         </div>
 
-                        <table v-show="alerts.length > 0" style="margin-bottom:3em; font-size: 0.9em;">
+                        <table v-show="alerts.length > 0" style="margin-bottom:3em; font-size: 0.9em;" class="pages-sent-table">
                             <thead>
                                 <tr>
                                     <th>Call#</th>
-                                    <th>Page Type</th>
-                                    <th>Address</th>
+                                    <th class="center" style="white-space:nowrap">Page Group</th>
                                     <th>Name</th>
+                                    <th>Address</th>                                    
                                     <th>Sent Time</th>
-                                    <th>Confirmed Time</th>
+                                    <th class="center">Confirmed By Recipient</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="_alert in alertsFiltered(_callnumber)" :class="{'grey-text': _alert.receiptconfirmation == null}">
+                                <tr v-for="_alert in alertsFiltered(_callnumber)" :class="{'blue lighten-5 black-text':_alert.ischieflevel == 1, 'grey-text': !_alert.receiptconfirmation}">
                                     <td>{{_alert.callnumber}}</td>
-                                    <td :class="pageGroupFiltered('googleGroup',_alert.pagegroup).textcolor + '-text'">{{pageGroupName(_alert.pagegroup)}}</td>
+                                    <td  class="center" :class="pageGroupFiltered('googleGroup',_alert.pagegroup).textcolor + '-text'">{{pageGroupName(_alert.pagegroup)}}</td>
+                                    <td :class="{'bold':_alert.ischieflevel == 1}">{{_alert.employee || '-Unknown-'}}</td>
                                     <td>{{_alert.recipient}}</td>
-                                    <td>{{_alert.employee}}</td>
                                     <td>{{_alert.senttime}}</td>
-                                    <td>{{_alert.receiptconfirmation}}</td>
+                                    <td v-bind:title="_alert.receiptconfirmation"><center>
+                                        <i v-show="_alert.receiptconfirmation" class="material-icons green-text">check</i>
+                                        <i v-show="!_alert.receiptconfirmation" class="material-icons red-text">close</i>
+                                        </center>
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -267,7 +282,10 @@
                     var instances = M.Modal.init(elems);
 
                     var elems2 = document.querySelectorAll('.dropdown-trigger');
-                    var instances2 = M.Dropdown.init(elems2);                    
+                    var instances2 = M.Dropdown.init(elems2); 
+
+                    var elems3 = document.querySelectorAll('.tooltipped');
+                    var instances3 = M.Tooltip.init(elems3);                    
                 },
                 setIsEmployee: function(){
                     var _this = this
