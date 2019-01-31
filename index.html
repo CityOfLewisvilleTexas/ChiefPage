@@ -51,6 +51,9 @@
         .collection-item p{
             margin-top: 0px !important;
         }
+        textarea::placeholder{
+            color:gray;
+        }
         @media only screen and (min-width: 1200px){
             #mainContainer{
                 margin: 1em 3em;               
@@ -86,6 +89,7 @@
                 <div class="nav-wrapper deep-purple white-text">
                     <a class="brand-logo">&nbsp Chief Page</a>           
                     <ul id="nav-mobile" class="right hide-on-med-and-down">
+                        <li><a href="#messageComposer" class="secondary-content modal-trigger" v-on:click="openEmailComposer('','IT On-Call')">IT On-Call Page</a></li>
                         <!-- Dropdown Trigger -->
                         <li><a class="dropdown-trigger" data-target="dropdown_OldGroupEmails">Legacy Method<i class="material-icons right">arrow_drop_down</i></a></li>
                         <li><a>{{username || ''}}</a></li>
@@ -101,6 +105,11 @@
             </div>
         </div>
 
+        <div class="row">
+            <div class="col s12">
+                <center class="grey-text" style="font-size:0.9em;">If the app doesn't load correctly, try opening Chrome's Incognito mode (CTRL+SHIFT+N), then go to http://apps/chiefpage</center>    
+            </div>
+        </div>
         <div id="mainContainer" v-show="isEmployee == true">            
             <div class="row">           
                 <div class="col s6">
@@ -157,7 +166,7 @@
                                     <th>Name</th>
                                     <th>Address</th>                                    
                                     <th>Sent Time</th>
-                                    <th class="center">Confirmed By Recipient</th>
+                                    <!--<th class="center">Confirmed By Recipient</th>-->
                                 </tr>
                             </thead>
                             <tbody>
@@ -167,11 +176,13 @@
                                     <td :class="{'bold':_alert.ischieflevel == 1}">{{_alert.employee || '-Unknown-'}}</td>
                                     <td>{{_alert.recipient}}</td>
                                     <td>{{_alert.senttime}}</td>
+                                    <!--
                                     <td v-bind:title="_alert.receiptconfirmation"><center>
                                         <i v-show="_alert.receiptconfirmation" class="material-icons green-text">check</i>
                                         <i v-show="!_alert.receiptconfirmation" class="material-icons red-text">close</i>
                                         </center>
                                     </td>
+                                    -->
                                 </tr>
                             </tbody>
                         </table>
@@ -199,7 +210,11 @@
                     </tr>
                     <tr>
                         <td>Message:</td>
-                        <td><textarea class="white" v-model="emailBody"></textarea></td>
+                        <td>
+                            <textarea disabled v-model="emailDefaultBody"></textarea>
+                            <br>
+                            <textarea class="white" v-model="emailBody" placeholder="Extra info you want to communicate"></textarea>
+                        </td>
                     </tr>
                 </table>    
             </div>
@@ -221,7 +236,7 @@
                     {
                         googleGroup: 'chiefpage', 
                         name: 'Fire', 
-                        emailSubjectTemplate: 'CHIEF PAGE: [[complaint]] [[callnumber]]',
+                        emailSubjectTemplate: '[[complaint]] ([[callnumber]])',
                         smsSubjectTemplate:"CHIEF PAGE",
                         backgroundcolor: "red",
                         textcolor: "red"
@@ -241,6 +256,14 @@
                         smsSubjectTemplate:"SWAT PAGE:",
                         backgroundcolor: "yellow",
                         textcolor: "amber"
+                    },
+                    {
+                        googleGroup: 'itoncall', 
+                        name: 'IT On-Call',
+                        emailSubjectTemplate: 'IT On-Call Page',
+                        smsSubjectTemplate:"IT On-Call Page:",
+                        backgroundcolor: "green",
+                        textcolor: "yellow"
                     }
                 ],
                 calls: [],
@@ -255,7 +278,8 @@
                 alertsCallNumbers: [],
                 alertsInterval: [],
                 emailSubject: '',
-                emailBody: ''
+                emailBody: '',
+                emailDefaultBody: ''
             },
             methods: {
                 init: function(){
@@ -350,8 +374,8 @@
                     axios.post('https://query.cityoflewisville.com/v2', {
                         webservice: "AlertPagesSendEmail",
                         auth_token: localStorage.colAuthToken,
-                        callnumber: _call.callnumber,
-                        calltitle: _call.complaint,
+                        callnumber: (_call.callnumber || itOnCall_FakeCallNumber()),
+                        calltitle: (_call.complaint || ''),
                         subject: _this.emailSubject,
                         body: _this.emailBody,
                         sentby: _this.username,
@@ -408,17 +432,25 @@
                 openEmailComposer: function(_call,_pageGroupName){                               
                     var _this = this
                     var _pageGroup = _this.pageGroupFiltered('name',_pageGroupName)
-                    var _text = _call.complaint + '\n' + 
-                        'Recvd: ' +  _call.time + '\n' + 
-                        _call.locationaddr + ',' + _call.locationcity + '\n' + 
-                        'AVL: http://avl.cityoflewisville.com/#callnumber=' + _call.callnumber + '\n' + 
-                        'Units Assigned: ' + _call.units + '\n' +
-                        'Grid:'
+                    var _text = ''
+                    
+                    if (_pageGroupName != 'IT On-Call'){
+                        _text = _call.complaint + '\n' + 
+                            _call.locationaddr + (_call.locationcity.toUpperCase() != 'LEWISVILLE' ? ', ' + _call.locationcity.toUpperCase() : "") + '\n' + 
+                            'http://avl.cityoflewisville.com/#callnumber=' + _call.callnumber
 
-                    //Set variables  
-                    _this.emailSubject = _pageGroup.emailSubjectTemplate.replace('[[callnumber]]',_call.callnumber).replace('[[complaint]]',_call.complaint)
+                            _this.emailSubject = _pageGroup.emailSubjectTemplate.replace('[[callnumber]]',_call.callnumber).replace('[[complaint]]',_call.complaint)
+                    }else{
+                        _text = ''
+                        _this.emailSubject = _pageGroup.emailSubjectTemplate.replace('[[callnumber]]',_call.callnumber)
+                    }
+
+                    //Set variables                      
                     _this.selectedPageGroup = _pageGroup
-                    _this.emailBody = _text
+                    _this.emailDefaultBody = _text
+                },
+                itOnCall_FakeCallNumber: function(){
+                    return {callnumber: new Date().toISOString().replace(/-/g,'').replace(/:/g,'').replace(/T/g,'')}
                 }
             }            
         })     
